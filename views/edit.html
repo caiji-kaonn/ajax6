@@ -1,0 +1,275 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Hero - Admin</title>
+    <link rel="stylesheet" href="../static/css/bootstrap.css">
+    <style>
+        .hero-list img {
+            width: 50px;
+        }
+
+        .mask {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, .3);
+        }
+
+        .progress {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 600px;
+            height: 40px;
+            transform: translate(-50%, -50%)
+        }
+
+        .progress-bar {
+            font-size: 20px;
+            color: hotpink;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="page-header container">
+            <h1>王者荣耀 <small>英雄管理器</small></h1>
+        </div>
+    </header>
+    <div class="container hero-list">
+        <form id="form">
+            <input type="hidden" id="id" name='id' value="1">
+            <input type="hidden" name="img" id="headSrc" value="">
+            <table class="table table-hover">
+                <tbody>
+                    <tr>
+                        <td>姓名：</td>
+                        <td><input type="text" id="name" name="name" value=""></td>
+                    </tr>
+                    <tr>
+                        <td>性别：</td>
+                        <td>
+                            <input id="nan" name="gender" value="男" type="radio" checked><label for="nan">男</label>
+                            <input name="gender" value="女" type="radio" id="nv"><label for="nv">女</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>头像：</td>
+                        <td><img src="../static/images/0.jpg" alt="" id="photo" width="100">
+                            <input type="file" id="img"></td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td><input type="button" class="btn btn-primary" id="sub" value="完成"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </form>
+    </div>
+    <div class="mask" hidden></div>
+    <div class="progress" hidden>
+        <div class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0"
+            aria-valuemax="100">0%</div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="modelId" tabindex="-1" role="dialog" aria-labelledby="modelTitleId" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">提示</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="container-fluid">
+                        Add rows here
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
+                    <button type="button" id="btn-sure" class="btn btn-primary">确定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+<script src="../static/js/jquery.js"></script>
+<script src="../static/js/kits.js"></script>
+<script src="../static/js/bootstrap.js"></script>
+<script>
+    /*
+    需要从浏览器的地址栏里面获取id
+    但是id不是那么好获取
+    我们把url参数转换为对象之后在获取
+
+    转换思路是：
+        url参数长成： id=10086&name=goudan&pwd=123
+        把url参数使用  &  割开，成为  [键=值,键=值...]
+        再把数组里面的每个 键=值 再割开 ， [键,值]
+*/
+    // let search = 'id=10086&name=goudan&pwd=123';
+    let params = kits.getUrlParams();
+    let id = params.id;
+    console.log(id);
+
+    $.ajax({
+        url: 'http://127.0.0.1:8080/getHeroById',
+        data: {
+            id
+        },
+        success: function (res) {
+            // console.log(res);
+            if (res.code === 200) {
+                // 把数据一个一个的往表单里面填
+                $("#name").val(res.data.name);
+                // 判断男女，设置不同的radio选中
+                // if(res.data.gender === '男'){
+                //     $("#nan").prop('checked',true);
+                // }else {
+                //     $("#nv").prop('checked',true);
+                // }
+                // if-else可以采用三元表达式进行简化
+
+                // 优化的思路 : 页面上的性别，默认是选中男的，我们只要判断，如果性别是女的，就设置女选中，男女是互斥的，
+                // if(res.data.gender === '女'){
+                //     $("#nv").prop('checked',true);
+                // }
+                $("#nv").prop('checked', res.data.gender === '女');
+                // 头像
+                $("#photo").attr('src', '../static/images/' + res.data.img);
+                // 也要把隐藏域的value修改，以便我们在点击完成的时候获取
+                $("#headSrc").val(res.data.img);
+                // 把id的隐藏域也修改
+                $('#id').val(res.data.id);
+            }
+        }
+    });
+
+    //实现图片的上传
+    // 1 注册事件
+    $("#img").on('change', function () {
+        // 2 获取文件
+        let file = this.files[0];
+        // 3 把文件转换为文件流
+        let fd = new FormData();
+        fd.append('pic', file);
+        // 把遮罩和进度条显示
+        $('.mask').removeAttr('hidden');
+        $('.progress').removeAttr('hidden');
+        // 4 使用ajax上传
+        $.ajax({
+            url: 'http://127.0.0.1:8080/uploadHeadImg',
+            type: 'post',
+            data: fd,
+            success: function (res) { // 请求成功的回调函数 status == 200 && readySate === 4 
+                // console.log(res);
+                if (res.code === 200) {
+                    $("#photo").attr('src', '../' + res.baseDir + res.filePath);
+                    // 修改隐藏域的值
+                    $("#headSrc").val(res.filePath);
+                }
+            },
+            // 不要动请求头
+            contentType: false,
+            // 不要动数据
+            processData: false,
+            /*
+                jq中的上传进度
+                    - 也是需要上传的事件
+                jq的ajax方法里面，有一个参数： xhr,这个参数用于指定一个xhr对象
+            */
+            xhr: function () {
+                let xhr = new XMLHttpRequest();
+                // 在这我么就给xhr对象注册上传事件
+                xhr.upload.onprogress = function (e) {
+                    // console.log(e.loaded,e.total);
+                    // 在这里处理进度条的逻辑
+                    // 计算出百分比
+                    let percent = parseInt(e.loaded / e.total * 10000) / 100 + '%';
+                    // 修改进度条的宽度和文字
+                    $('.progress-bar').width(percent).text(percent);
+                }
+                return xhr;
+            },
+            complete: function () {
+                // complate - 完成 - 会在请求完成的时候执行
+                // 不管是成功还是失败，这个函数都会执行
+                $(".mask").attr('hidden', true);
+                $(".progress").attr('hidden', true);
+                $('.progress-bar').width(0); //要把进度条归零，因为如果仅仅是隐藏，下次上传的时候，出现还是之前的进度
+            },
+            error: function () {
+                // 出错的回调函数
+                alert('请求出错了，请重试');
+            }
+        });
+    })
+
+
+    let nameElment = document.querySelector('#name');
+    // 把对于名字的验证的规则先处理
+    let vld = new Validator();
+    vld.add(nameElment, [{
+            fnName: 'isNonEmpty',
+            errMsg: '名字不能为空'
+        },
+        {
+            fnName: 'minLength:3',
+            errMsg: '名字的长度不能小于3'
+        }
+    ]);
+
+
+    // 点击完成按钮
+    $("#sub").on('click', function () {
+        // 交互常识
+        // if($('#name').val().trim().lenght === 0){
+        //     alert('提示用户名字不能为空');
+        //     return;
+        // }
+
+        // 收集数据看看
+        let data = $('#form').serialize();
+        // console.log(data);
+        // 使用ajax请求请求服务器，进行修改
+        $.ajax({
+            type: 'post',
+            url: 'http://127.0.0.1:8080/eidtHeroById',
+            data: data,
+            success: function (res) {
+                // console.log(res);
+                if (res.code === 200) {
+                    // 弹框提示
+                    $('#modelId').modal();
+                    $('.container-fluid').text('修改成功')
+                }
+            },
+            // ajax方法里面还有一个参数，该参数，会在ajax发送之前执行
+            beforeSend: function () {
+                // return false;
+                // 可以在在这里执行发送之前的逻辑
+                // 发送前要做数据的合法性判断，比如非空，比如是否是手机，是否是邮箱...
+                let msg = vld.start();
+                if (msg) {
+                    // 提示用户 - 不一定非得是alert，使用bootstrap的提示框也是可以的
+                    alert(msg);
+                    return false; // 如果在beforeSend函数里面return 一个false，ajax就不会继续发送了
+                }
+            }
+        });
+
+    })
+
+    $("#btn-sure").on('click', function () {
+        location.href = './index.html';
+    });
+</script>
+
+</html>
